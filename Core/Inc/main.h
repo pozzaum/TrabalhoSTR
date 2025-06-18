@@ -20,4 +20,8 @@
 #define T_SWO_GPIO_Port GPIOB
 
 
+#define PushButton_Pin GPIO_PIN_13
+#define PushButton_GPIO_Port GPIOC
+
+
 #endif /* __MAIN_H */

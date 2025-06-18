@@ -1,41 +1,15 @@
-/****************************************************************************
-* MInimal Real-time Operating System (MiROS), GNU-ARM port.
-*
-* This software is a teaching aid to illustrate the concepts underlying
-* a Real-Time Operating System (RTOS). The main goal of the software is
-* simplicity and clear presentation of the concepts, but without dealing
-* with various corner cases, portability, or error handling. For these
-* reasons, the software is generally NOT intended or recommended for use
-* in commercial applications.
-*
-* Copyright (C) 2018 Miro Samek. All Rights Reserved.
-*
-* SPDX-License-Identifier: GPL-3.0-or-later
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <https://www.gnu.org/licenses/>.
-*
-* Git repo:
-* https://github.com/QuantumLeaps/MiROS
-****************************************************************************/
 #include <cstdint>
 #include "miros.h"
+#include "OS_scheduler.h"
+#include "OS_aperiodicServer.h"
 #include "qassert.h"
 #include "stm32g4xx.h"
 
 Q_DEFINE_THIS_FILE
 
 namespace rtos {
+
+volatile uint32_t OS_tickCount = 0;
 
 OSThread * volatile OS_curr; /* pointer to the current thread */
 OSThread * volatile OS_next; /* pointer to the next thread to run */
@@ -65,23 +39,7 @@ void OS_init(void *stkSto, uint32_t stkSize) {
 }
 
 void OS_sched(void) {
-    if (OS_readySet == 0U) { /* idle condition? */
-    	OS_currIdx = 0U; /* the idle thread */
-    } else {
-    	do{ /* find the next ready thread*/
-            OS_currIdx++;
-            if(OS_currIdx == OS_threadNum){
-            	OS_currIdx = 1;
-            }
-            OS_next = OS_thread[OS_currIdx];
-    	}while((OS_readySet & (1U <<(OS_currIdx - 1U))) == 0 );
-    }
-    OS_next = OS_thread[OS_currIdx];
-
-    /* trigger PendSV, if needed */
-    if(OS_next != OS_curr){
-    	*(uint32_t volatile *)0xE000ED04 = (1U << 28);
-    }
+    OS_scheduler();
 }
 
 void OS_run(void) {
@@ -97,28 +55,39 @@ void OS_run(void) {
 }
 
 void OS_tick(void) {
-	uint8_t n = 0;
-	for(n=1U;n<OS_threadNum; n++){ 				/* cycle through every thread but the idle */
-		if(OS_thread[n]->timeout != 0U){
-			OS_thread[n]->timeout--;			/* decrease the timeout */
-			if(OS_thread[n]->timeout == 0U){
-				OS_readySet |= (1U << (n-1U));	/* if the thread is ready mask the corresponding bit */
-			}
-		}
-	}
+	__disable_irq();
+
+	monitor_overruns();				//verifica se alguma task excedeu o wcet, se sim, apenas faz a preempcao (firm real-time)
+	update_task_deadlines();		//atualiza o deadline absoluto das tasks
+	update_ready_tasks();			//atualiza o estado das tarefas (ready == pode ser ativada)
+    recharge_Budget(OS_curr); 		//recarrega o orcamento do servidor aperiodico
+
+    if (OS_currIdx != 0 && OS_thread[OS_currIdx]->tcb->ready) OS_thread[OS_currIdx]->tcb->exec_time++;
+
+	OS_tickCount = OS_tickCount + 1;
+
+	__enable_irq();
 }
 
-void OS_delay(uint32_t ticks) {
-    __asm volatile ("cpsid i");
 
-    /* never call OS_delay from the idleThread */
+void OS_delay(uint32_t ticks) {
+    __disable_irq();
+
     Q_REQUIRE(OS_curr != OS_thread[0]);
 
-    OS_curr->timeout = ticks;
+    // marca a tarefa como nao pronta
+    OS_curr->tcb->ready = false;
+    OS_curr->tcb->wake_tick = OS_tickCount + ticks;
     OS_readySet &= ~(1U << (OS_currIdx - 1U));
-    OS_sched();
-    __asm volatile ("cpsie i");
- }
+
+    __enable_irq();
+
+    // aguarda ate que a tarefa seja reativada pelo escalonador
+    while (OS_tickCount < OS_curr->tcb->wake_tick){
+        yield();
+    }
+}
+
 
 void OSThread_start(
     OSThread *me,
@@ -174,7 +143,50 @@ void OSThread_start(
     OS_threadNum++;
 }
 /***********************************************/
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
+  RCC_OscInitStruct.PLL.PLLN = 85;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    //Default_Handler();
+  }
+
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
+    //Default_Handler();
+  }
+}
+
 void OS_onStartup(void) {
+	SystemClock_Config();
     SystemCoreClockUpdate();
     SysTick_Config(SystemCoreClock / TICKS_PER_SEC);
 

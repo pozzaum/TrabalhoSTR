@@ -219,6 +219,7 @@ void Default_Handler(void)
     ;
 }
 
+
 //redefindo outras interrupções para o tratamento padrão
 void WWDG_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void PVD_PVM_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
@@ -321,6 +322,13 @@ void DMA2_Channel7_IRQHandler(void) __attribute__((weak, alias("Default_Handler"
 void DMA2_Channel8_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void CORDIC_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void FMAC_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
+
+/*
+extern "C" void EXTI15_10_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(PushButton_Pin);
+}
+*/
 
 /*tabela de interrupção*/
 const uint32_t vectors[] __attribute__((section(".isr_vector"))) = {
@@ -443,6 +451,5 @@ const uint32_t vectors[] __attribute__((section(".isr_vector"))) = {
 	(uint32_t)CORDIC_IRQHandler,
 	(uint32_t)FMAC_IRQHandler,
 };
-
 
 /* USER CODE END 1 */
