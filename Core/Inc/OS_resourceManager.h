@@ -3,7 +3,6 @@
 
 #ifdef INC_OS_SEMAPHORE_H_
 
-#include <stdint.h>
 
 namespace rtos {
 

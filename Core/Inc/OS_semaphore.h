@@ -3,9 +3,6 @@
 
 #ifdef INC_MIROS_H_
 
-#include <cstdint>
-#include <cstddef>
-
 #define BUFFER_SIZE 5
 
 typedef uint32_t semaphore;

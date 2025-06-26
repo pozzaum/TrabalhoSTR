@@ -23,8 +23,8 @@ void Producer::produce(){
 	while(true){
 		wait(emptys);
 		wait(mutex);
-        double data;
-        produce_func(data); // Produz o item (callback)
+        //double data;
+        //produce_func(data); // Produz o item (callback)
 		signal(mutex);
 		signal(fulls);
 		in = (in + 1) % BUFFER_SIZE;
@@ -39,7 +39,7 @@ void Consumer::consume(){
 	while(true){
 		wait(fulls);
 		wait(mutex);
-		double data = buffer[out];
+		//double data = buffer[out];
 		buffer[out] = -1.0; // Marca como consumido (opcional)
 		signal(mutex);
 		signal(emptys);
