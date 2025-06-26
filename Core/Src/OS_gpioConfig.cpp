@@ -2,9 +2,8 @@
 #include "miros.h"
 #include "OS_gpioConfig.h"
 
-
-volatile uint8_t button_pressed_flag = 0;
-volatile uint32_t last_button_tick = 0;
+extern volatile uint8_t button_pressed_flag;
+extern volatile uint32_t last_button_tick;
 
 // configuracao do GPIO
 void MX_GPIO_Init(void){

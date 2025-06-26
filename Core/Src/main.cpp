@@ -9,15 +9,17 @@
 
 // Stacks e estruturas das threads
 uint32_t stack_idleThread[40];
-uint32_t stack_task1[40];
+uint32_t stack_task_sensor[40];
+uint32_t stack_task_pid[40];
+uint32_t stack_task_pwm[40];
+uint32_t stack_task_button[40];
+
 uint32_t stack_aperiodicServer[40];
-uint32_t stack_button[40];
 
-rtos::OSThread task1;
+rtos::OSThread task_sensor, task_pid, task_pwm, task_button;
 rtos::OSThread serverThread;
-rtos::OSThread buttonThread;
 
-rtos::TaskControlBlock tcb_task1, tcb_button;
+rtos::TaskControlBlock tcb_task_sensor, tcb_task_pid, tcb_task_pwm, tcb_task_button;
 rtos::aperiodicServerTCB server;
 
 
@@ -25,55 +27,84 @@ rtos::aperiodicServerTCB server;
 rtos::Resource recurso_compartilhado = {false, nullptr};
 volatile int valor_compartilhado = 0;
 
-
 // Requisicoes aperiodicas
-volatile int interrupt1 = 0, interrupt2 = 0;
-uint32_t requisicao1 = 0, requisicao2 = 0;
+volatile int setpoint;
+
+volatile uint8_t button_pressed_flag = 0;
+volatile uint32_t last_button_tick = 0;
+
 
 //	Funcao da requisicao aperiodica
-void aperiodic_requisition1(void*){
+void aperiodic_requisition(void*){
 	//alterar setpoint do pid
 }
 
-//baixa --> media --> alta --> media --> baixa --> media --> alta
-
 // Funcoes das tarefas
-void tarefa1_func() {
+void sensor_read() {
 	while(true){
+		//	funcao para leitura do sensor
 
-		//ajustar o PID para manter o nivel da bolinha
+        rtos::mark_task_completed(&tcb_task_sensor);	//abstracao para marcar termino de uma tarefa
+	}
+}
 
-        rtos::mark_task_completed(&tcb_task1);	//abstracao para marcar termino de uma tarefa
+void pid_adjust(){
+	while(true){
+		// funcao para regular o pid
+
+        rtos::mark_task_completed(&tcb_task_pid);	//abstracao para marcar termino de uma tarefa
+
+	}
+}
+
+void pwm_adjust(){
+	while(true){
+		//	funcao para regular o pwm
+
+        rtos::mark_task_completed(&tcb_task_pwm);	//abstracao para marcar termino de uma tarefa
 	}
 }
 
 
-// verifica o pressionamento do botao e entao adiciona requisicao aperiodica ao servidor
 void button_func(){
-	//chamar requisicao aperiodica
+    while (true) {
+        if (button_pressed_flag) {
+            rtos::aperiodic_server_add_request(&server, aperiodic_requisition, nullptr);
+            button_pressed_flag = 0;
+        }
+        rtos::mark_task_completed(&tcb_task_button); // coopera com o escalonador
+    }
 }
-
 
 int main(void) {
     MX_GPIO_Init(); // Inicializa o GPIO do botao
 
     // Inicializacao dos TCBs
-    rtos::init_task_control_block(&tcb_task1, 100, 10, 100);
-    rtos::init_task_control_block(&tcb_button, 50, 10, 50);
+    rtos::init_task_control_block(&tcb_task_sensor, 100, 10, 100);
+    rtos::init_task_control_block(&tcb_task_pid, 100, 10, 100);
+    rtos::init_task_control_block(&tcb_task_pwm, 100, 10, 100);
+    rtos::init_task_control_block(&tcb_task_button, 50, 10, 50);
+
     rtos::aperiodic_server_init(&server, 50, 10);
 
     // Inicializacao do RTOS
     rtos::OS_init(stack_idleThread, sizeof(stack_idleThread));
 
-    OSThread_start(&task1, tarefa1_func, stack_task1, sizeof(stack_task1));
-    OSThread_start(&buttonThread, button_func, stack_button, sizeof(stack_button));
+    OSThread_start(&task_sensor, sensor_read, stack_task_sensor, sizeof(stack_task_sensor));
+    OSThread_start(&task_pid, pid_adjust, stack_task_pid, sizeof(stack_task_pid));
+    OSThread_start(&task_pwm, pwm_adjust, stack_task_pwm, sizeof(stack_task_pwm));
+    OSThread_start(&task_button, button_func, stack_task_button, sizeof(stack_task_button));
+
 
     //	Inicializacao servidor aperiodico
     OSThread_start(&serverThread, rtos::aperiodic_server_func, stack_aperiodicServer, sizeof(stack_aperiodicServer));
 
     //	Atribuicao das tarefas
-    rtos::add_thread_with_task(&task1, &tcb_task1);
-    rtos::add_thread_with_task(&buttonThread, &tcb_button);
+    rtos::add_thread_with_task(&task_sensor, &tcb_task_sensor);
+    rtos::add_thread_with_task(&task_pid, &tcb_task_pid);
+    rtos::add_thread_with_task(&task_pwm, &tcb_task_pwm);
+    rtos::add_thread_with_task(&task_button, &tcb_task_button);
+
     rtos::associate_aperiodic_server_thread(&serverThread, &server);
 
 
