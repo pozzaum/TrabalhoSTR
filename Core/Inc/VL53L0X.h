@@ -1,6 +1,5 @@
-#ifndef VL53L0X_h
-#define VL53L0X_h
-
+#ifndef __VL53L0X_h
+#define __VL53L0X_h
 
 //------------------------------------------------------------
 // For quick and dirty C++ compatibility

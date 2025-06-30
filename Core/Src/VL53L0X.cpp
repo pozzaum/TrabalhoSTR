@@ -4,6 +4,7 @@
 // VL53L0X datasheet.
 
 #include <stdint.h>
+
 #include "stm32g4xx_hal.h" // Change it for your requirements.
 #include "stm32g4xx_hal_i2c.h" // Change it for your requirements.
 

@@ -6,6 +6,7 @@
 #include "OS_aperiodicServer.h"
 #include "OS_semaphore.h"
 #include "OS_resourceManager.h"
+#include "VL53L0X.h"
 
 // Stacks e estruturas das threads
 uint32_t stack_idleThread[40];
@@ -34,15 +35,94 @@ volatile uint8_t button_pressed_flag = 0;
 volatile uint32_t last_button_tick = 0;
 
 
-//	Funcao da requisicao aperiodica
+
+//	inicializacao I2C
+
+I2C_HandleTypeDef hi2c1;
+
+void I2CError_Handler(void){
+	while(true){
+		//	nunca deve entrar aqui --> erro na inicializacao do i2c
+	}
+}
+
+static void MX_I2C1_Init(void)
+{
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x00707CBB;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+	  I2CError_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+	  I2CError_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0x0) != HAL_OK)
+  {
+	  I2CError_Handler();
+  }
+}
+
+//	inicializacao GPIO
+static void MX_GPIO_Init(void){
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin = PushButton_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // interrupcao na borda de descida
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(PushButton_GPIO_Port, &GPIO_InitStruct);
+
+    // prioridade e habilitacao da interrupcao EXTI para PC13
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1U, 1U);
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+}
+
+
+
+
+//FUNCAO DAS REQUISICOES APERIODICAS
 void aperiodic_requisition(void*){
 	//alterar setpoint do pid
 }
 
-// Funcoes das tarefas
+
+
+//FUNCOES DAS TAREFAS PERIODICAS
+
+//	Leitura do sensor
+statInfo_t_VL53L0X distanceStats;
+volatile int current_distance;
+
 void sensor_read() {
 	while(true){
 		//	funcao para leitura do sensor
+		current_distance = (int)readRangeContinuousMillimeters(&distanceStats);
 
         rtos::mark_task_completed(&tcb_task_sensor);	//abstracao para marcar termino de uma tarefa
 	}
@@ -55,6 +135,7 @@ void pid_adjust(){
         rtos::mark_task_completed(&tcb_task_pid);	//abstracao para marcar termino de uma tarefa
 
 	}
+
 }
 
 void pwm_adjust(){
@@ -65,6 +146,9 @@ void pwm_adjust(){
 	}
 }
 
+
+
+//	leitura do botão
 
 void button_func(){
     while (true) {
@@ -77,6 +161,7 @@ void button_func(){
 }
 
 int main(void) {
+	MX_I2C1_Init();	// Inicaliz I2C
     MX_GPIO_Init(); // Inicializa o GPIO do botao
 
     // Inicializacao dos TCBs

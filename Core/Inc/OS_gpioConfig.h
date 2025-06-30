@@ -15,7 +15,7 @@
 #define PWM_Pin GPIO_PIN_2
 #define PWM_GPIO_Port GPIOC
 
-extern void MX_GPIO_Init(void);
+//extern void MX_GPIO_Init(void);
 
 extern void EXTI15_10_IRQHandler(void);
 

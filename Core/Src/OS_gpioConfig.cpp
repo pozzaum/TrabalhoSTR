@@ -5,7 +5,8 @@
 extern volatile uint8_t button_pressed_flag;
 extern volatile uint32_t last_button_tick;
 
-// configuracao do GPIO
+// configuracao do GPIO --> Sera mantido na main.cpp
+/*
 void MX_GPIO_Init(void){
 
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -23,7 +24,7 @@ void MX_GPIO_Init(void){
     HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1U, 1U);
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
-
+*/
 
 //	redefinicao do handler
 void EXTI15_10_IRQHandler(void)
@@ -32,7 +33,7 @@ void EXTI15_10_IRQHandler(void)
 }
 
 
-// redefinicao do callback
+//	redefinicao do callback
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == PushButton_Pin) {
         uint32_t now = rtos::OS_tickCount;

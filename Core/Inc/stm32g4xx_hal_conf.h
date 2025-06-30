@@ -74,6 +74,8 @@
 #define HAL_PWR_MODULE_ENABLED
 #define HAL_CORTEX_MODULE_ENABLED
 
+#define HAL_I2C_MODULE_ENABLED	//	uso do sensor
+
 /* ########################## Register Callbacks selection ############################## */
 /**
   * @brief This is the list of modules where register callback can be used
@@ -87,7 +89,7 @@
 #define USE_HAL_FDCAN_REGISTER_CALLBACKS      0U
 #define USE_HAL_FMAC_REGISTER_CALLBACKS       0U
 #define USE_HAL_HRTIM_REGISTER_CALLBACKS      0U
-#define USE_HAL_I2C_REGISTER_CALLBACKS        0U
+#define USE_HAL_I2C_REGISTER_CALLBACKS        1U
 #define USE_HAL_I2S_REGISTER_CALLBACKS        0U
 #define USE_HAL_IRDA_REGISTER_CALLBACKS       0U
 #define USE_HAL_LPTIM_REGISTER_CALLBACKS      0U
