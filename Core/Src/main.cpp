@@ -1,4 +1,5 @@
 #include "main.h"
+#include "stm32g4xx_hal_tim.h"
 #include "miros.h"
 #include "OS_gpioConfig.h"
 #include "OS_pid.h"
@@ -40,10 +41,23 @@ volatile uint32_t last_button_tick = 0;
 
 I2C_HandleTypeDef hi2c1;
 
+// inicializacao TIM2
+
+TIM_HandleTypeDef htim2;
+
 void I2CError_Handler(void){
 	while(true){
 		//	nunca deve entrar aqui --> erro na inicializacao do i2c
 	}
+}
+
+void TIM2Error_Handler(void)
+{
+  __disable_irq();
+  while (1)
+  {
+    // Fica preso aqui se algo der errado na inicialização.
+  }
 }
 
 static void MX_I2C1_Init(void)
@@ -82,6 +96,20 @@ static void MX_I2C1_Init(void)
   {
 	  I2CError_Handler();
   }
+}
+
+// funcao de inicializacao do PWM Timer 2
+static void MX_TIM2_Init(void)
+{
+  // Configuração básica do Timer 2
+  htim2.Instance = TIM2;
+  // Para clock de 170MHz, Prescaler=169 -> Clock do Timer = 1MHz
+  htim2.Init.Prescaler = 169;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  // Período = 999 -> Frequência do PWM = 1MHz / (999+1) = 1kHz
+  htim2.Init.Period = 999;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 }
 
 //	inicializacao GPIO
@@ -142,6 +170,10 @@ void pwm_adjust(){
 	while(true){
 		//	funcao para regular o pwm
 
+		// Use a variável global 'pwmVal' calculada pela tarefa do PID
+		// O registrador CCR1 está dentro da estrutura htim2.Instance
+		//htim2.Instance->CCR1 = (uint32_t)(pwmVal * htim2.Instance->ARR);
+
         rtos::mark_task_completed(&tcb_task_pwm);	//abstracao para marcar termino de uma tarefa
 	}
 }
@@ -163,6 +195,7 @@ void button_func(){
 int main(void) {
 	MX_I2C1_Init();	// Inicaliz I2C
     MX_GPIO_Init(); // Inicializa o GPIO do botao
+    MX_TIM2_Init(); // Inicializa o Timer
 
     // Inicializacao dos TCBs
     rtos::init_task_control_block(&tcb_task_sensor, 100, 10, 100);
