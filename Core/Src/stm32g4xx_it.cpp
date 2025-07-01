@@ -195,6 +195,11 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 1 */
 }
 
+void EXTI0_IRQHandler(void)
+{
+	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
+}
+
 /******************************************************************************/
 /* STM32G4xx Peripheral Interrupt Handlers                                    */
 /* Add here the Interrupt Handlers for the used peripherals.                  */
@@ -227,7 +232,6 @@ void RTC_TAMP_LSECSS_IRQHandler(void) __attribute__((weak, alias("Default_Handle
 void RTC_WKUP_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void FLASH_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void RCC_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
-void EXTI0_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void EXTI1_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void EXTI2_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void EXTI3_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
