@@ -27,6 +27,8 @@ void MX_GPIO_Init(void){
 */
 
 //	redefinicao do handler
+
+/*
 void EXTI15_10_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(PushButton_Pin);
@@ -43,4 +45,4 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         }
     }
 }
-
+*/

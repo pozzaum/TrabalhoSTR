@@ -1,30 +1,28 @@
 #ifndef INC_OS_PID_H_
 #define INC_OS_PID_H_
 
-#ifdef QASSERT_H
+#define PID_SCALE 1000000
 
 #include <stdint.h>
 
 typedef struct {
-    float Kp;
-    float Ki;
-    float Kd;
+    int32_t Kp;
+    int32_t Ki;
+    int32_t Kd;
 
-    float setpoint;
-    float input;
-    float integral_sum;
-    float error_prev;
+    int32_t setpoint;
+    int32_t input;
+    int32_t integral_sum;
+    int32_t error_prev;
 
-    float max;
-    float min;
+    int32_t max;
+    int32_t min;
 } PIDController;
 
 extern uint32_t SENSOR_TICKS;
 
-void PID_setup(PIDController* controller, float kp, float ki, float kd, float setpoint, float max, float min);
-float PID_action(PIDController* controller, float error);
+void PID_setup(PIDController* controller, int32_t kp, int32_t ki, int32_t kd, int32_t setpoint, int32_t max, int32_t min);
+uint32_t PID_action(PIDController* controller, int32_t error);
 
-#endif
 
 #endif /* INC_OS_PID_H_ */
-

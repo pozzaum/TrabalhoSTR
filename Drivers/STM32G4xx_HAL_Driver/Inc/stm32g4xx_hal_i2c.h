@@ -169,7 +169,7 @@ typedef enum
 #define HAL_I2C_ERROR_TIMEOUT   (0x00000020U)    /*!< Timeout error         */
 #define HAL_I2C_ERROR_SIZE      (0x00000040U)    /*!< Size Management error */
 #define HAL_I2C_ERROR_DMA_PARAM (0x00000080U)    /*!< DMA Parameter Error   */
-#if (USE_HAL_I2C_REGISTER_CALLBACKS == 1U)
+#if (USE_HAL_I2C_REGISTER_CALLBACKS == 1)
 #define HAL_I2C_ERROR_INVALID_CALLBACK  (0x00000100U)    /*!< Invalid Callback error */
 #endif /* USE_HAL_I2C_REGISTER_CALLBACKS */
 #define HAL_I2C_ERROR_INVALID_PARAM     (0x00000200U)    /*!< Invalid Parameters error  */
@@ -220,7 +220,7 @@ typedef struct __I2C_HandleTypeDef
 
   __IO uint32_t              Memaddress;     /*!< I2C Target memory address                 */
 
-#if (USE_HAL_I2C_REGISTER_CALLBACKS == 1U)
+#if (USE_HAL_I2C_REGISTER_CALLBACKS == 1)
   void (* MasterTxCpltCallback)(struct __I2C_HandleTypeDef *hi2c);
   /*!< I2C Master Tx Transfer completed callback */
   void (* MasterRxCpltCallback)(struct __I2C_HandleTypeDef *hi2c);

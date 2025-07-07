@@ -82,6 +82,7 @@ void mark_task_completed(TaskControlBlock* task) {
 				break;
 			}
 		}
+		yield();
 	}
 }
 

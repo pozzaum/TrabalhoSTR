@@ -1,44 +1,41 @@
-#include "qassert.h"
 #include "OS_pid.h"
 
-Q_DEFINE_THIS_FILE
+#define PID_SCALE 1000000
 
 uint32_t SENSOR_TICKS = 5;
 
-void PID_setup(PIDController* controller, float kp, float ki, float kd, float setpoint, float max, float min) {
-    Q_ASSERT(controller);
+void PID_setup(PIDController* controller, int32_t kp, int32_t ki, int32_t kd, int32_t setpoint, int32_t max, int32_t min) {
 
     controller->Kp = kp;
     controller->Ki = ki;
     controller->Kd = kd;
     controller->setpoint = setpoint;
-    controller->input = 0.0;
-    controller->integral_sum = 0.0;
-    controller->error_prev = 0.0;
+    controller->input = 0;
+    controller->integral_sum = 0;
+    controller->error_prev = 0;
     controller->max = max;
     controller->min = min;
 }
 
-float PID_action(PIDController* controller, float error) {
-    Q_ASSERT(controller);
+uint32_t PID_action(PIDController* controller, int32_t error) {
 
-    controller->integral_sum = controller->integral_sum + (error * SENSOR_TICKS);
-    float derivative_term = (error - controller->error_prev) / SENSOR_TICKS;
+    controller->integral_sum += error * SENSOR_TICKS;
+    int32_t derivative_term = (error - controller->error_prev) / SENSOR_TICKS;
 
     controller->error_prev = error;
 
-    float comp_p = (controller->Kp * error);
-    float comp_i = (controller->Ki * controller->integral_sum);
-    float comp_d = (controller->Kd * derivative_term);
+    int32_t comp_p = controller->Kp * error;
+    int32_t comp_i = controller->Ki * controller->integral_sum;
+    int32_t comp_d = controller->Kd * derivative_term;
 
-    float output = comp_p + comp_i + comp_d;
+    int32_t output = (comp_p + comp_i + comp_d) / PID_SCALE;
 
-    if (output > controller->max) {
+    if (output > (int32_t)controller->max) {
       output = controller->max;
     }
-    if (output < controller->min) {
+    if (output < (int32_t)controller->min) {
       output = controller->min;
     }
 
-    return output;
+    return (int32_t)output;
 }

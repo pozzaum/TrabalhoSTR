@@ -47,7 +47,7 @@
 /*#define HAL_HRTIM_MODULE_ENABLED   */
 /*#define HAL_IRDA_MODULE_ENABLED   */
 /*#define HAL_IWDG_MODULE_ENABLED   */
-/*#define HAL_I2C_MODULE_ENABLED   */
+#define HAL_I2C_MODULE_ENABLED
 /*#define HAL_I2S_MODULE_ENABLED   */
 /*#define HAL_LPTIM_MODULE_ENABLED   */
 /*#define HAL_NAND_MODULE_ENABLED   */
@@ -62,7 +62,7 @@
 /*#define HAL_SMBUS_MODULE_ENABLED   */
 /*#define HAL_SPI_MODULE_ENABLED   */
 /*#define HAL_SRAM_MODULE_ENABLED   */
-/*#define HAL_TIM_MODULE_ENABLED   */
+#define HAL_TIM_MODULE_ENABLED
 /*#define HAL_UART_MODULE_ENABLED   */
 /*#define HAL_USART_MODULE_ENABLED   */
 /*#define HAL_WWDG_MODULE_ENABLED   */
@@ -73,8 +73,6 @@
 #define HAL_FLASH_MODULE_ENABLED
 #define HAL_PWR_MODULE_ENABLED
 #define HAL_CORTEX_MODULE_ENABLED
-
-#define HAL_I2C_MODULE_ENABLED	//	uso do sensor
 
 /* ########################## Register Callbacks selection ############################## */
 /**
@@ -89,7 +87,7 @@
 #define USE_HAL_FDCAN_REGISTER_CALLBACKS      0U
 #define USE_HAL_FMAC_REGISTER_CALLBACKS       0U
 #define USE_HAL_HRTIM_REGISTER_CALLBACKS      0U
-#define USE_HAL_I2C_REGISTER_CALLBACKS        1U
+#define USE_HAL_I2C_REGISTER_CALLBACKS        0U
 #define USE_HAL_I2S_REGISTER_CALLBACKS        0U
 #define USE_HAL_IRDA_REGISTER_CALLBACKS       0U
 #define USE_HAL_LPTIM_REGISTER_CALLBACKS      0U
