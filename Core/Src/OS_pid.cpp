@@ -1,8 +1,5 @@
 #include "OS_pid.h"
 
-#define PID_SCALE 1000000
-
-uint32_t SENSOR_TICKS = 5;
 
 void PID_setup(PIDController* controller, int32_t kp, int32_t ki, int32_t kd, int32_t setpoint, int32_t max, int32_t min) {
 

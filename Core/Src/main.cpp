@@ -106,7 +106,7 @@ volatile int current_distance;
 void sensor_read() {
 	while(true){
 		//	funcao para leitura do sensor
-		current_distance = (int)readRangeContinuousMillimeters(&distanceStats);
+		current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
 
 		//LUCÃO --> Recurso Compartilhado
 		pid.input = current_distance;

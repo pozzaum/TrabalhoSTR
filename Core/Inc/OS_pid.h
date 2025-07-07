@@ -3,6 +3,8 @@
 
 #define PID_SCALE 1000000
 
+#define SENSOR_TICKS ( 0.05 * PID_SCALE)
+
 #include <stdint.h>
 
 typedef struct {
@@ -19,7 +21,6 @@ typedef struct {
     int32_t min;
 } PIDController;
 
-extern uint32_t SENSOR_TICKS;
 
 void PID_setup(PIDController* controller, int32_t kp, int32_t ki, int32_t kd, int32_t setpoint, int32_t max, int32_t min);
 uint32_t PID_action(PIDController* controller, int32_t error);
