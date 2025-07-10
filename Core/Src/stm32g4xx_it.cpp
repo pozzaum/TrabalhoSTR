@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "miros.h"
+
+//extern "C" void PendSV_Handler(void);
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -170,16 +172,12 @@ void DebugMon_Handler(void)
   */
 
 
-//void PendSV_Handler(void)
-//{
-//  /* USER CODE BEGIN PendSV_IRQn 0 */
-//
-//  /* USER CODE END PendSV_IRQn 0 */
-//  /* USER CODE BEGIN PendSV_IRQn 1 */
-//
-//  /* USER CODE END PendSV_IRQn 1 */
-//}
+/*
+void PendSV_Handler(void)
+{
 
+}
+*/
 
 /**
   * @brief This function handles System tick timer.

@@ -53,12 +53,12 @@ I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim20;
 
-void SystemClock_Config();
-static void MX_I2C1_Init();
-static void MX_TIM20_Init();
+extern "C" void SystemClock_Config();
+extern "C" void MX_I2C1_Init();
+extern "C" void MX_TIM20_Init();
 void EXTI15_10_IRQHandler();
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
-static void MX_GPIO_Init();
+extern "C" void MX_GPIO_Init();
 void Error_Handler();
 void Resource_Managment_Error_Handler();
 
@@ -76,14 +76,17 @@ void aperiodic_requisition(void*){
 	case 0:
 		//LUCÃO --> Recurso Compartilhado
 		pid.setpoint = 53;
+		break;
 
 	case 1:
 		//LUCÃO --> Recurso Compartilhado
 		pid.setpoint = 55;
+		break;
 
 	case 2:
 		//LUCÃO --> Recurso Compartilhado
 		pid.setpoint = 57;
+		break;
 
 	default:
 		Resource_Managment_Error_Handler();
@@ -105,12 +108,13 @@ volatile int current_distance;
 
 void sensor_read() {
 	while(true){
+		/*
 		//	funcao para leitura do sensor
 		current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
 
 		//LUCÃO --> Recurso Compartilhado
 		pid.input = current_distance;
-
+*/
         rtos::mark_task_completed(&tcb_task_sensor);	//abstracao para marcar termino de uma tarefa
 	}
 }
@@ -120,13 +124,14 @@ void pid_adjust(){
 		// funcao para regular o pid
 
 		//LUCÃO --> Recurso Compartilhado
+		/*
 		uint32_t error = pid.setpoint - pid.input;
 
 		//LUCÃO --> Recurso Compartilhado
 		uint32_t pid_pwm_value = PID_action(&pid, error);
 
 		pwm_signal = pid_pwm_value;
-
+*/
         rtos::mark_task_completed(&tcb_task_pid);	//abstracao para marcar termino de uma tarefa
 
 	}
@@ -142,18 +147,21 @@ void pwm_adjust(){
 		//htim2.Instance->CCR1 = (uint32_t)(pwmVal * htim2.Instance->ARR);
 
 		//LUCÃO --> Recurso Compartilhado
-		htim20.Instance->CCR1 = (pwm_signal * htim20.Instance->ARR) / PID_SCALE;
-
-        rtos::mark_task_completed(&tcb_task_pwm);	//abstracao para marcar termino de uma tarefa
+		//htim20.Instance->CCR1 = (pwm_signal * htim20.Instance->ARR) / PID_SCALE;
+		htim20.Instance->CCR2 = (uint32_t)(0.6 * htim20.Instance->ARR);
+		//htim20.Instance->CCR2 = 0;
+		rtos::mark_task_completed(&tcb_task_pwm);	//abstracao para marcar termino de uma tarefa
 	}
 }
 
 
 int main(void) {
+	HAL_Init();
 	SystemClock_Config();
 	MX_I2C1_Init();	// Inicializa I2C
     MX_GPIO_Init(); // Inicializa o GPIO
     MX_TIM20_Init(); // Inicializa o Timer
+    HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
 
     PID_setup(&pid, KP_FIXED, KI_FIXED, KD_FIXED, setpoint, PID_MAX, PID_MIN);
 
@@ -206,7 +214,7 @@ void Resource_Managment_Error_Handler(){
 }
 
 
-void SystemClock_Config(void)
+extern "C" void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -253,7 +261,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-static void MX_I2C1_Init(void)
+extern "C" void MX_I2C1_Init(void)
 {
 
   /* USER CODE BEGIN I2C1_Init 0 */
@@ -301,13 +309,14 @@ static void MX_I2C1_Init(void)
   * @param None
   * @retval None
   */
-static void MX_TIM20_Init(void)
+extern "C" void MX_TIM20_Init(void)
 {
 
   /* USER CODE BEGIN TIM20_Init 0 */
 
   /* USER CODE END TIM20_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
@@ -321,7 +330,16 @@ static void MX_TIM20_Init(void)
   htim20.Init.Period = 65535;
   htim20.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim20.Init.RepetitionCounter = 0;
-  htim20.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim20.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim20) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim20, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_PWM_Init(&htim20) != HAL_OK)
   {
     Error_Handler();
@@ -368,47 +386,32 @@ static void MX_TIM20_Init(void)
 
 }
 
-
-void EXTI15_10_IRQHandler(void)
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+extern "C" void MX_GPIO_Init(void)
 {
-    HAL_GPIO_EXTI_IRQHandler(PushButton_Pin);
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
 
+/* USER CODE BEGIN 4 */
 
-//	redefinicao do callback
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    if (GPIO_Pin == PushButton_Pin) {
-        uint32_t now = rtos::OS_tickCount;
-        if ((now - last_button_tick > 10) && (button_pressed_flag == 0)) {	//	10 ticks debounce
-            button_pressed_flag = 1;
-            last_button_tick = now;
-        }
-    }
+/* USER CODE END 4 */
 
-    if (button_pressed_flag == 1){
-    	rtos::aperiodic_server_add_request(&server, aperiodic_requisition, nullptr);
-    }
-}
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
 
-
-//	inicializacao GPIO
-static void MX_GPIO_Init(void){
-	  GPIO_InitTypeDef GPIO_InitStruct = {0};
-	/* USER CODE BEGIN MX_GPIO_Init_1 */
-	/* USER CODE END MX_GPIO_Init_1 */
-
-	  /* GPIO Ports Clock Enable */
-	  __HAL_RCC_GPIOC_CLK_ENABLE();
-	  __HAL_RCC_GPIOF_CLK_ENABLE();
-	  __HAL_RCC_GPIOA_CLK_ENABLE();
-	  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-    GPIO_InitStruct.Pin = PushButton_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // interrupcao na borda de descida
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(PushButton_GPIO_Port, &GPIO_InitStruct);
-
-    // prioridade e habilitacao da interrupcao EXTI para PC13
-    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1U, 1U);
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-}
