@@ -14,7 +14,7 @@ void PID_setup(PIDController* controller, int32_t kp, int32_t ki, int32_t kd, in
     controller->min = min;
 }
 
-uint32_t PID_action(PIDController* controller, int32_t error) {
+int32_t PID_action(PIDController* controller, int32_t error) {
 
     controller->integral_sum += error * SENSOR_TICKS;
     int32_t derivative_term = (error - controller->error_prev) / SENSOR_TICKS;
@@ -25,7 +25,7 @@ uint32_t PID_action(PIDController* controller, int32_t error) {
     int32_t comp_i = controller->Ki * controller->integral_sum;
     int32_t comp_d = controller->Kd * derivative_term;
 
-    int32_t output = (comp_p + comp_i + comp_d) / PID_SCALE;
+    int32_t output = (comp_p + comp_i + comp_d) * 100 / PID_SCALE;	// cuidado com a escala
 
     if (output > (int32_t)controller->max) {
       output = controller->max;
@@ -33,6 +33,6 @@ uint32_t PID_action(PIDController* controller, int32_t error) {
     if (output < (int32_t)controller->min) {
       output = controller->min;
     }
-
+    output += 30;
     return (int32_t)output;
 }

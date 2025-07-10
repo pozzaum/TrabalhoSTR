@@ -23,7 +23,7 @@ typedef struct {
 
 
 void PID_setup(PIDController* controller, int32_t kp, int32_t ki, int32_t kd, int32_t setpoint, int32_t max, int32_t min);
-uint32_t PID_action(PIDController* controller, int32_t error);
+int32_t PID_action(PIDController* controller, int32_t error);
 
 
 #endif /* INC_OS_PID_H_ */

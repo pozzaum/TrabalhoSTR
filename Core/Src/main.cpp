@@ -15,6 +15,8 @@ rtos::SharedMemoryManager smManager;
 // IDs dos recursos compartilhados (serao preenchidos na criacao)
 rtos::ResourceID resource_PIDSetpoint_ID = 0;
 rtos::ResourceID resource_PIDInput_ID = 0;
+rtos::ResourceID resource_PIDOutput_ID = 0;
+
 
 #define PID_SCALE 1000000
 
@@ -22,8 +24,8 @@ rtos::ResourceID resource_PIDInput_ID = 0;
 #define KP_FIXED   (-0.0001  * PID_SCALE)  // -100
 #define KI_FIXED   (-0.00001 * PID_SCALE)  // -10
 #define KD_FIXED   ( 0.00001 * PID_SCALE)  // 10
-#define PID_MIN	   ( 0.52 * PID_SCALE)
-#define PID_MAX	   ( 0.58 * PID_SCALE)
+#define PID_MIN	   -30
+#define PID_MAX	   30
 
 
 uint32_t pwm_signal = 0;
@@ -142,10 +144,12 @@ void pid_adjust(){
 
 		uint32_t error = pid_setpoint - pid_input;
 
-		//LUCÃO --> Recurso Compartilhado
+
 		uint32_t pid_pwm_value = PID_action(&pid, error);
 
-		pwm_signal = pid_pwm_value;
+		do{
+			dummy_2 = smManager.manageResource(resource_PIDOutput_ID, "WRITE", sizeof(uint32_t), "", &pid_pwm_value);
+		}while(!dummy_2);
 
         rtos::mark_task_completed(&tcb_task_pid);	//abstracao para marcar termino de uma tarefa
 
@@ -157,15 +161,16 @@ void pid_adjust(){
 void pwm_adjust(){
 	while(true){
 		//	funcao para regular o pwm
+		uint32_t pwm_value = 0;
+		bool dummy_1;
+		do{
+			dummy_1 = smManager.manageResource(resource_PIDOutput_ID, "READ", sizeof(uint32_t), "", &pwm_value);
+		}while(!dummy_1);
 
-		// Use a variável global 'pwmVal' calculada pela tarefa do PID
-		// O registrador CCR1 está dentro da estrutura htim2.Instance
-		//htim2.Instance->CCR1 = (uint32_t)(pwmVal * htim2.Instance->ARR);
+		pwm_value += 31; // +61 para centralizar conforme a descricao menos 30 para voltar o reescale feito no OS_PID para trabalhar como uint32_t em vez de int32_t
 
-		//LUCÃO --> Recurso Compartilhado
-		//htim20.Instance->CCR1 = (pwm_signal * htim20.Instance->ARR) / PID_SCALE;
-		//htim20.Instance->CCR2 = 30;
-		//htim20.Instance->CCR2 = 0;
+		htim20.Instance->CCR2 = pwm_value;
+
 		rtos::mark_task_completed(&tcb_task_pwm);	//abstracao para marcar termino de uma tarefa
 	}
 }
@@ -215,6 +220,10 @@ int main(void) {
 
     // tamanho maximo de 32 bits
     if (!smManager.manageResource(resource_PIDInput_ID, "CREATE", sizeof(uint32_t), "I")) {
+        while(1); // Trava o sistema
+    }
+
+    if (!smManager.manageResource(resource_PIDOutput_ID, "CREATE", sizeof(uint32_t), "I")) {
         while(1); // Trava o sistema
     }
 
