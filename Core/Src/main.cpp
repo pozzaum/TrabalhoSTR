@@ -9,6 +9,13 @@
 #include "OS_resourceManager.h"
 #include "VL53L0X.h"
 
+// Instancia do gerenciador de memoria compartilhada
+rtos::SharedMemoryManager smManager;
+
+// IDs dos recursos compartilhados (serao preenchidos na criacao)
+rtos::ResourceID resource_PIDSetpoint_ID = 0;
+rtos::ResourceID resource_PIDInput_ID = 0;
+
 #define PID_SCALE 1000000
 
 // Ganhos desejados
@@ -35,9 +42,6 @@ rtos::OSThread serverThread;
 rtos::TaskControlBlock tcb_task_sensor, tcb_task_pid, tcb_task_pwm;;
 rtos::aperiodicServerTCB server;
 
-
-// Recurso compartilhado (abstracao)
-rtos::Resource recurso_compartilhado = {false, nullptr};
 
 PIDController pid;
 
@@ -69,25 +73,24 @@ void Resource_Managment_Error_Handler();
 
 uint32_t cont_aperiodic = 0;
 void aperiodic_requisition(void*){
-
-	//LUCÃO --> Recurso compartilhado
+	uint32_t pid_setpoint = 55;
+	bool dummy = false;
 	height_setpoint_mask = (height_setpoint_mask + 1) % 3;
 
-			//LUCÃO --> Recurso Compartilhado
 	switch(height_setpoint_mask){
 	case 0:
-		//LUCÃO --> Recurso Compartilhado
-		pid.setpoint = 53;
+
+		pid_setpoint = 53;
 		break;
 
 	case 1:
-		//LUCÃO --> Recurso Compartilhado
-		pid.setpoint = 55;
+
+		pid_setpoint = 55;
 		break;
 
 	case 2:
-		//LUCÃO --> Recurso Compartilhado
-		pid.setpoint = 57;
+
+		pid_setpoint = 57;
 		break;
 
 	default:
@@ -95,6 +98,9 @@ void aperiodic_requisition(void*){
 
 	break;
 	}
+	do{
+		dummy = smManager.manageResource(resource_PIDSetpoint_ID, "WRITE", sizeof(uint32_t), "I", &pid_setpoint);
+	}while(!dummy);
 
 	button_pressed_flag = 0;
 	cont_aperiodic++;
@@ -110,35 +116,43 @@ volatile int current_distance;
 
 void sensor_read() {
 	while(true){
-		/*
+		bool dummy = false;
 		//	funcao para leitura do sensor
-		current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
+		uint32_t current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
 
-		//LUCÃO --> Recurso Compartilhado
-		pid.input = current_distance;
-*/
+		do{
+			dummy = smManager.manageResource(resource_PIDInput_ID, "WRITE", sizeof(uint32_t), "I", &current_distance);
+		}while(!dummy);
+
         rtos::mark_task_completed(&tcb_task_sensor);	//abstracao para marcar termino de uma tarefa
 	}
 }
 
 void pid_adjust(){
 	while(true){
-		// funcao para regular o pid
+		uint32_t pid_setpoint, pid_input;
+		bool dummy_1, dummy_2;
+		do{
+			dummy_1 = smManager.manageResource(resource_PIDSetpoint_ID, "READ", sizeof(uint32_t), "", &pid_setpoint);
+		}while(!dummy_1);
 
-		//LUCÃO --> Recurso Compartilhado
-		/*
-		uint32_t error = pid.setpoint - pid.input;
+		do{
+			dummy_2 = smManager.manageResource(resource_PIDInput_ID, "READ", sizeof(uint32_t), "", &pid_input);
+		}while(!dummy_2);
+
+		uint32_t error = pid_setpoint - pid_input;
 
 		//LUCÃO --> Recurso Compartilhado
 		uint32_t pid_pwm_value = PID_action(&pid, error);
 
 		pwm_signal = pid_pwm_value;
-*/
+
         rtos::mark_task_completed(&tcb_task_pid);	//abstracao para marcar termino de uma tarefa
 
 	}
 
 }
+
 
 void pwm_adjust(){
 	while(true){
@@ -194,6 +208,15 @@ int main(void) {
 
     rtos::associate_aperiodic_server_thread(&serverThread, &server);
 
+    // tamanho maximo de 32 bits
+    if (!smManager.manageResource(resource_PIDSetpoint_ID, "CREATE", sizeof(uint32_t), "I")) {
+        while(1); // Trava o sistema se nao conseguir criar recurso critico
+    }
+
+    // tamanho maximo de 32 bits
+    if (!smManager.manageResource(resource_PIDInput_ID, "CREATE", sizeof(uint32_t), "I")) {
+        while(1); // Trava o sistema
+    }
 
     rtos::OS_run();
 
