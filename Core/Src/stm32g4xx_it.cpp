@@ -196,6 +196,11 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 1 */
 }
 
+
+extern DMA_HandleTypeDef hdma_tim20_ch2;
+
+
+
 /******************************************************************************/
 /* STM32G4xx Peripheral Interrupt Handlers                                    */
 /* Add here the Interrupt Handlers for the used peripherals.                  */
@@ -233,7 +238,7 @@ void EXTI1_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void EXTI2_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void EXTI3_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void EXTI4_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
-void DMA1_Channel1_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
+//void DMA1_Channel1_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void DMA1_Channel2_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void DMA1_Channel3_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void DMA1_Channel4_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
@@ -262,7 +267,7 @@ void SPI2_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USART1_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USART2_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USART3_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
-void EXTI15_10_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
+//void EXTI15_10_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void RTC_Alarm_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void USBWakeUp_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
 void TIM8_BRK_IRQHandler(void) __attribute__((weak, alias("Default_Handler")));
@@ -330,6 +335,32 @@ extern "C" void EXTI15_10_IRQHandler(void)
     HAL_GPIO_EXTI_IRQHandler(PushButton_Pin);
 }
 */
+
+void DMA1_Channel1_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_tim20_ch2);
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line[15:10] interrupts.
+  */
+void EXTI15_10_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
+
+  /* USER CODE END EXTI15_10_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
+
+  /* USER CODE END EXTI15_10_IRQn 1 */
+}
+
 
 /*tabela de interrupção*/
 const uint32_t vectors[] __attribute__((section(".isr_vector"))) = {

@@ -2,8 +2,11 @@
 #include "miros.h"
 #include "OS_gpioConfig.h"
 
+
+/*
 extern volatile uint8_t button_pressed_flag;
 extern volatile uint32_t last_button_tick;
+*/
 
 // configuracao do GPIO --> Sera mantido na main.cpp
 /*

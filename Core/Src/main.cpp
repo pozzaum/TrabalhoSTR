@@ -7,7 +7,14 @@
 #include "OS_aperiodicServer.h"
 #include "OS_semaphore.h"
 #include "OS_resourceManager.h"
-#include "VL53L0X.h"
+
+
+// Instancia do gerenciador de memoria compartilhada
+rtos::SharedMemoryManager smManager;
+
+// IDs dos recursos compartilhados (serao preenchidos na criacao)
+rtos::ResourceID resource_PIDSetpoint_ID = 0;
+rtos::ResourceID resource_PIDInput_ID = 0;
 
 #define PID_SCALE 1000000
 
@@ -36,9 +43,6 @@ rtos::TaskControlBlock tcb_task_sensor, tcb_task_pid, tcb_task_pwm;;
 rtos::aperiodicServerTCB server;
 
 
-// Recurso compartilhado (abstracao)
-rtos::Resource recurso_compartilhado = {false, nullptr};
-
 PIDController pid;
 
 // Requisicoes aperiodicas
@@ -63,31 +67,33 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 static void MX_GPIO_Init();
 void Error_Handler();
 void Resource_Managment_Error_Handler();
-
+HAL_StatusTypeDef VL530X_InitSimple(void);
+HAL_StatusTypeDef VL530X_ReadSingleSimple(void);
 
 //FUNCAO DAS REQUISICOES APERIODICAS
 
 uint32_t cont_aperiodic = 0;
+uint16_t pwm_led_val = 20;
 void aperiodic_requisition(void*){
-
-	//LUCÃO --> Recurso compartilhado
+	/*
+	uint32_t pid_setpoint = 55;
+	bool dummy = false;
 	height_setpoint_mask = (height_setpoint_mask + 1) % 3;
 
-			//LUCÃO --> Recurso Compartilhado
 	switch(height_setpoint_mask){
 	case 0:
-		//LUCÃO --> Recurso Compartilhado
-		pid.setpoint = 53;
+
+		pid_setpoint = 53;
 		break;
 
 	case 1:
-		//LUCÃO --> Recurso Compartilhado
-		pid.setpoint = 55;
+
+		pid_setpoint = 55;
 		break;
 
 	case 2:
-		//LUCÃO --> Recurso Compartilhado
-		pid.setpoint = 57;
+
+		pid_setpoint = 57;
 		break;
 
 	default:
@@ -95,9 +101,17 @@ void aperiodic_requisition(void*){
 
 	break;
 	}
+	do{
+		dummy = smManager.manageResource(resource_PIDSetpoint_ID, "WRITE", sizeof(uint32_t), "I", &pid_setpoint);
+	}while(!dummy);
 
 	button_pressed_flag = 0;
 	cont_aperiodic++;
+	*/
+	pwm_led_val = (pwm_led_val + 20) % 100;
+	htim20.Instance->CCR2 = pwm_led_val;
+
+
 }
 
 
@@ -105,40 +119,53 @@ void aperiodic_requisition(void*){
 //FUNCOES DAS TAREFAS PERIODICAS
 
 //	Leitura do sensor
-statInfo_t_VL53L0X distanceStats;
+//statInfo_t_VL53L0X distanceStats;
 volatile int current_distance;
+
 
 void sensor_read() {
 	while(true){
 		/*
+		bool dummy = false;
 		//	funcao para leitura do sensor
-		current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
+		uint32_t current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
 
-		//LUCÃO --> Recurso Compartilhado
-		pid.input = current_distance;
-*/
+		do{
+			dummy = smManager.manageResource(resource_PIDInput_ID, "WRITE", sizeof(uint32_t), "I", &current_distance);
+		}while(!dummy);
+
+		*/
         rtos::mark_task_completed(&tcb_task_sensor);	//abstracao para marcar termino de uma tarefa
+
 	}
 }
 
 void pid_adjust(){
 	while(true){
-		// funcao para regular o pid
-
-		//LUCÃO --> Recurso Compartilhado
 		/*
-		uint32_t error = pid.setpoint - pid.input;
+		uint32_t pid_setpoint, pid_input;
+		bool dummy_1, dummy_2;
+		do{
+			dummy_1 = smManager.manageResource(resource_PIDSetpoint_ID, "READ", sizeof(uint32_t), "", &pid_setpoint);
+		}while(!dummy_1);
+
+		do{
+			dummy_2 = smManager.manageResource(resource_PIDInput_ID, "READ", sizeof(uint32_t), "", &pid_input);
+		}while(!dummy_2);
+
+		uint32_t error = pid_setpoint - pid_input;
 
 		//LUCÃO --> Recurso Compartilhado
 		uint32_t pid_pwm_value = PID_action(&pid, error);
 
 		pwm_signal = pid_pwm_value;
-*/
+		*/
         rtos::mark_task_completed(&tcb_task_pid);	//abstracao para marcar termino de uma tarefa
 
 	}
 
 }
+
 
 void pwm_adjust(){
 	while(true){
@@ -164,9 +191,9 @@ int main(void) {
 	MX_GPIO_Init(); // Inicializa o GPIO
 	MX_I2C1_Init();	// Inicializa I2C
     MX_TIM20_Init(); // Inicializa o Timer
-    htim20.Instance->CCR2 = 80;
     HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
 
+    htim20.Instance->CCR2 = 20;
     PID_setup(&pid, KP_FIXED, KI_FIXED, KD_FIXED, setpoint, PID_MAX, PID_MIN);
 
     // Inicializacao dos TCBs
@@ -201,6 +228,50 @@ int main(void) {
 }
 
 
+
+
+
+//	redefinicao do callback
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == GPIO_PIN_13) {
+        uint32_t now = rtos::OS_tickCount;
+        if ((now - last_button_tick > 10) && (button_pressed_flag == 0)) {	//	10 ticks debounce
+            button_pressed_flag = 1;
+            last_button_tick = now;
+        }
+    }
+
+    if (button_pressed_flag == 1){
+    	rtos::aperiodic_server_add_request(&server, aperiodic_requisition, nullptr);
+    }
+}
+
+
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
+}
 
 
 void Error_Handler(){
@@ -411,26 +482,6 @@ static void MX_DMA_Init(void)
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init(void){
-	  GPIO_InitTypeDef GPIO_InitStruct = {0};
-	/* USER CODE BEGIN MX_GPIO_Init_1 */
-	/* USER CODE END MX_GPIO_Init_1 */
-
-	  /* GPIO Ports Clock Enable */
-	  __HAL_RCC_GPIOC_CLK_ENABLE();
-	  __HAL_RCC_GPIOF_CLK_ENABLE();
-	  __HAL_RCC_GPIOA_CLK_ENABLE();
-	  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-    GPIO_InitStruct.Pin = PushButton_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // interrupcao na borda de descida
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(PushButton_GPIO_Port, &GPIO_InitStruct);
-
-    // prioridade e habilitacao da interrupcao EXTI para PC13
-    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1U, 1U);
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.
