@@ -37,7 +37,7 @@ extern uint8_t OS_threadNum;          // Número de threads
 extern uint8_t OS_currIdx;
 extern OSThread idleThread;
 
-const uint16_t TICKS_PER_SEC = 100U;
+const uint16_t TICKS_PER_SEC = 1000U;
 
 typedef void (*OSThreadHandler)();
 

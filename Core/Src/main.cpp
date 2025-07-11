@@ -8,6 +8,8 @@
 #include "OS_semaphore.h"
 #include "OS_resourceManager.h"
 #include "VL53L0X.h"
+#include "stm32g4xx_hal.h"  // Ou o header correto para o seu modelo de STM32
+#include "system_stm32g4xx.h"  // Arquivo gerado para a configuração de clock, pode variar
 
 // Instancia do gerenciador de memoria compartilhada
 rtos::SharedMemoryManager smManager;
@@ -120,7 +122,9 @@ void sensor_read() {
 	while(true){
 		bool dummy = false;
 		//	funcao para leitura do sensor
-		uint32_t current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
+		//uint32_t current_distance = (int32_t)readRangeContinuousMillimeters(&distanceStats);
+
+		uint32_t current_distance = 0;
 
 		do{
 			dummy = smManager.manageResource(resource_PIDInput_ID, "WRITE", sizeof(uint32_t), "I", &current_distance);
@@ -131,7 +135,11 @@ void sensor_read() {
 }
 
 void pid_adjust(){
+	uint32_t a = 0;
+	uint32_t pid_pwm_value = 99;
+
 	while(true){
+		pid_pwm_value++;
 		uint32_t pid_setpoint, pid_input;
 		bool dummy_1, dummy_2;
 		do{
@@ -145,7 +153,18 @@ void pid_adjust(){
 		uint32_t error = pid_setpoint - pid_input;
 
 
-		uint32_t pid_pwm_value = PID_action(&pid, error);
+		//uint32_t pid_pwm_value = PID_action(&pid, error);
+
+		if(pid_pwm_value > 100){
+			pid_pwm_value = 0;
+			if(!a){
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+				a = 1;
+			}else{
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+				a = 0;
+			}
+		}
 
 		do{
 			dummy_2 = smManager.manageResource(resource_PIDOutput_ID, "WRITE", sizeof(uint32_t), "", &pid_pwm_value);
@@ -167,7 +186,7 @@ void pwm_adjust(){
 			dummy_1 = smManager.manageResource(resource_PIDOutput_ID, "READ", sizeof(uint32_t), "", &pwm_value);
 		}while(!dummy_1);
 
-		pwm_value += 31; // +61 para centralizar conforme a descricao menos 30 para voltar o reescale feito no OS_PID para trabalhar como uint32_t em vez de int32_t
+		//pwm_value += 31; // +61 para centralizar conforme a descricao menos 30 para voltar o reescale feito no OS_PID para trabalhar como uint32_t em vez de int32_t
 
 		htim20.Instance->CCR2 = pwm_value;
 
@@ -183,15 +202,15 @@ int main(void) {
 	MX_GPIO_Init(); // Inicializa o GPIO
 	MX_I2C1_Init();	// Inicializa I2C
     MX_TIM20_Init(); // Inicializa o Timer
-    htim20.Instance->CCR2 = 80;
+    htim20.Instance->CCR2 = 0;
     HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
 
     PID_setup(&pid, KP_FIXED, KI_FIXED, KD_FIXED, setpoint, PID_MAX, PID_MIN);
 
     // Inicializacao dos TCBs
-    rtos::init_task_control_block(&tcb_task_sensor, 100, 10, 100);
-    rtos::init_task_control_block(&tcb_task_pid, 100, 10, 100);
-    rtos::init_task_control_block(&tcb_task_pwm, 100, 10, 100);
+    rtos::init_task_control_block(&tcb_task_sensor, 1, 1, 1);
+    rtos::init_task_control_block(&tcb_task_pid, 1, 1, 1);
+    rtos::init_task_control_block(&tcb_task_pwm, 1, 1, 1);
 
     rtos::aperiodic_server_init(&server, 50, 10);
 
@@ -462,6 +481,16 @@ static void MX_GPIO_Init(void){
     // prioridade e habilitacao da interrupcao EXTI para PC13
     HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1U, 1U);
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+    GPIO_InitTypeDef gpio_init_struct = {0};
+
+	gpio_init_struct.Pin = GPIO_PIN_5;                 // Pino PA5 (LED)
+	gpio_init_struct.Mode = GPIO_MODE_OUTPUT_PP;       // Modo saída push-pull
+	gpio_init_struct.Pull = GPIO_NOPULL;               // Sem resistor de pull-up/pull-down
+	gpio_init_struct.Speed = GPIO_SPEED_FREQ_LOW;      // Velocidade baixa
+
+	HAL_GPIO_Init(GPIOA, &gpio_init_struct);           // Inicializa GPIOA com essas configurações
+
 }
 
 /**
